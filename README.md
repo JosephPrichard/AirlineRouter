@@ -13,4 +13,4 @@ Application makes heavy use of smart pointers and modern cpp features to achieve
 
 ## Usage
 
-./airlineRouter <airlineNetworkFile> <requestedFlightsFile> <outputFile>
+./airlineRouter airlineNetworkFile requestedFlightsFile outputFile
