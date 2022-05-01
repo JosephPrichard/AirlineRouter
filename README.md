@@ -1,5 +1,5 @@
 # AirlineRouter
-Airline Router application written in C++ that finds the most optimal path between two cities on an airline network using Dijkstra's algorithm. 
+Airline Router application written in C++ that finds the most optimal paths (retrieves the top 3) between two cities on an airline network using Dijkstra's algorithm. 
 
 Written for my CS3345 Algorithms and Datastructures class at UTD.
 
