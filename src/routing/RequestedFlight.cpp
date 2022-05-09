@@ -3,14 +3,14 @@
 //
 
 #include "RequestedFlight.h"
-#include "../Utils.h"
+#include "../utils/StringUtils.h"
 
 RequestedFlight::RequestedFlight() = default;
 
 RequestedFlight::RequestedFlight(
-    std::string& fromLocation,
-    std::string& toLocation,
-    PathOptimization pathOptimization
+        std::string& fromLocation,
+        std::string& toLocation,
+        PathOptimization pathOptimization
 ) {
     this->fromLocation = fromLocation;
     this->toLocation = toLocation;

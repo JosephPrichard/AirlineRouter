@@ -3,16 +3,16 @@
 //
 
 #include "AirlineNetwork.h"
-#include "../Utils.h"
+#include "../utils/StringUtils.h"
 
 AirlineNetwork::AirlineNetwork(int numBuckets) {
     hashTable.resize(numBuckets);
-    for (auto &pair : hashTable) {
+    for (auto& pair: hashTable) {
         pair = nullptr;
     }
 }
 
-int AirlineNetwork::addFlight(const std::string &location, const Flight& flight) {
+int AirlineNetwork::addFlight(const std::string& location, const Flight& flight) {
     int count = 0;
     for (int i = 0; count < hashTable.size(); i++) {
         int index = hash(location, i);
@@ -29,7 +29,7 @@ int AirlineNetwork::addFlight(const std::string &location, const Flight& flight)
             count++;
         } else {
             // bucket is empty insert a new vector containing the flight
-            hashTable[index] = std::make_unique<TableNode>(location, std::make_unique<NeighborFlights>());
+            hashTable[index] = std::make_unique<Bucket>(location, std::make_unique<std::list<Flight>>());
             hashTable[index]->second->push_back(flight);
             return 1;
         }
@@ -37,7 +37,7 @@ int AirlineNetwork::addFlight(const std::string &location, const Flight& flight)
     return 0;
 }
 
-std::vector<Flight>* AirlineNetwork::neighborFlights(const std::string &location) {
+std::list<Flight>* AirlineNetwork::neighborFlights(const std::string& location) {
     int count = 0;
     for (int i = 0; count < hashTable.size(); i++) {
         int index = hash(location, i);
@@ -57,12 +57,12 @@ std::vector<Flight>* AirlineNetwork::neighborFlights(const std::string &location
     return nullptr;
 }
 
-std::vector<std::string> AirlineNetwork::locations() {
-    std::vector<std::string> locations;
+std::vector<std::string*> AirlineNetwork::locations() {
+    std::vector<std::string*> locations;
     // for each pair in hash table
-    for (auto &pair : hashTable) {
+    for (auto& pair: hashTable) {
         if (pair != nullptr) {
-            locations.push_back(pair->first);
+            locations.push_back(&pair->first);
         }
     }
     return locations;
@@ -72,7 +72,7 @@ int AirlineNetwork::numLocations() const {
     return size;
 }
 
-int AirlineNetwork::hash(const std::string &location, int i) {
+int AirlineNetwork::hash(const std::string& location, int i) {
     // linear probing hash function - leads to primary clustering but reaps incredible cache performance
     auto h = (hasher(location) + i) % hashTable.size();
     return (int) h;
@@ -81,12 +81,12 @@ int AirlineNetwork::hash(const std::string &location, int i) {
 std::ostream& operator<<(std::ostream& os, AirlineNetwork& airlineNetwork) {
     auto locations = airlineNetwork.locations();
     // for each location retrieve the neighbor flights and output
-    for (auto &location : locations) {
+    for (auto& location: locations) {
         // retrieve neighbor flights for location
-        auto flights = airlineNetwork.neighborFlights(location);
-        for (auto &flight : *flights) {
+        auto flights = airlineNetwork.neighborFlights(*location);
+        for (auto& flight: *flights) {
             // output neighbor flight to output stream
-            os << location << "|" << flight.getLocation() << "|";
+            os << *location << "|" << flight.getLocation() << "|";
             os << flight.getCost() << "|" << flight.getTime() << "\n";
         }
     }
@@ -96,7 +96,7 @@ std::ostream& operator<<(std::ostream& os, AirlineNetwork& airlineNetwork) {
 std::istream& operator>>(std::istream& is, AirlineNetwork& airlineNetwork) {
     std::string line;
     while (std::getline(is, line)) {
-        std::vector<std::string> splitStr = splitString(line, '|');
+        std::vector<std::string> splitStr = utils::splitString(line, '|');
 
         if (splitStr.size() < 4) {
             throw std::out_of_range("flight must contain 4 tokens");

@@ -2,7 +2,6 @@
 #include <fstream>
 #include "src/network/AirlineNetwork.h"
 #include "src/routing/AirlineRouter.h"
-#include "src/routing/FrontierNode.h"
 
 int main(int argc, char** argv) {
     if (argc < 3) {

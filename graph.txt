@@ -1,4 +1,4 @@
-8
+9
 Dallas|Austin|98|47
 Dallas|Austin|99|48
 Austin|Houston|95|39
@@ -7,3 +7,4 @@ Austin|Chicago|144|192
 Chicago|Nevada|52|143
 Nevada|Arizona|43|94
 Arizona|Dallas|48|101
+Arizona|Chicago|56|121

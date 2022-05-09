@@ -9,7 +9,7 @@ Flight::Flight() = default;
 Flight::Flight(const std::string& location, float cost, int time) {
     this->location = location;
     this->cost = cost;
-    this-> time = time;
+    this->time = time;
 }
 
 const std::string& Flight::getLocation() const {

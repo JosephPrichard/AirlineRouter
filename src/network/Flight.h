@@ -15,7 +15,7 @@ private:
 public:
     Flight();
 
-    Flight(const std::string &location, float cost, int time);
+    Flight(const std::string& location, float cost, int time);
 
     const std::string& getLocation() const;
 

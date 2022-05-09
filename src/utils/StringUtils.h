@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 
-std::vector<std::string> splitString(std::string &str, char delim);
+namespace utils {
+    std::vector<std::string> splitString(std::string& str, char delim);
+}
 
 #endif //AIRLINESHORTESTPATHS_UTILS_H

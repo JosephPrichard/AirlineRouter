@@ -9,7 +9,9 @@
 #include <string>
 #include <vector>
 
-enum PathOptimization { FLIGHT_COST, FLIGHT_TIME };
+enum PathOptimization {
+    FLIGHT_COST, FLIGHT_TIME
+};
 
 class RequestedFlight {
 private:

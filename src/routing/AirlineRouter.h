@@ -9,7 +9,7 @@
 #include "RequestedFlight.h"
 #include "../network/Flight.h"
 #include "../network/AirlineNetwork.h"
-#include "FrontierNode.h"
+#include "FlightPath.h"
 
 // data structure responsible for maintaining airline network graph, requested flights, and optimal flight paths
 // provides the ability to calculate optimal flight paths for a requested flight using Dijkstra's algorithm
@@ -21,7 +21,7 @@ private:
     std::vector<RequestedFlight> requestedFlights;
     // 3d vector: a vector of top paths (which is a vector of paths (each path is a vector of flights)) for each requested flight
     // top paths vector contains the path already in sorted order from least to most costly (in order of discovery)
-    std::vector<std::vector<std::vector<Flight>>> optimalFlightPaths;
+    std::vector<std::vector<FlightPath>> optimalFlightPaths;
 
 public:
     explicit AirlineRouter(std::unique_ptr<AirlineNetwork>& airlineNetwork);
@@ -32,15 +32,12 @@ public:
 
     void addRequestedFlight(RequestedFlight& requestedFlight);
 
-    const std::vector<std::vector<std::vector<Flight>>>& getOptimalFlightPaths() const;
+    const std::vector<std::vector<FlightPath>>& getOptimalFlightPaths() const;
 
-    // calculate optimal flight paths using Dijkstra's algorithm for a specific requested flight
-    std::vector<std::vector<Flight>> findFlightPath(RequestedFlight& requestedFlight);
+    // calculate optimal flight paths using iterative backtracking Dfs algorithm for a specific requested flight
+    std::vector<FlightPath> findFlightPaths(RequestedFlight& requestedFlight);
 
-    // uses iterative backtracking to reconstruct a path after Dijkstra's algorithm is finished
-    static std::vector<Flight> backtrackPath(FrontierNode* node);
-
-    // calculate optimal flight paths using Dijkstra's algorithm for each requested flight and push into optimal paths vector
+    // calculate optimal flight paths for each requested flight and push into optimal paths vector
     void addFlightPaths();
 
     // read an input stream containing requested flights into the airline router

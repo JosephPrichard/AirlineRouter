@@ -2,15 +2,11 @@
 // Created by Ltpri on 4/15/2022.
 //
 
-#include <unordered_map>
-#include <queue>
-#include <cfloat>
 #include <algorithm>
+#include <unordered_map>
 #include "AirlineRouter.h"
-#include "FrontierNode.h"
-#include "../Utils.h"
-
-#define MAX_OPT_PATHS 3
+#include "../stack/Stack.h"
+#include "../utils/StringUtils.h"
 
 AirlineRouter::AirlineRouter(std::unique_ptr<AirlineNetwork>& airlineNetwork) {
     this->airlineNetwork = std::move(airlineNetwork);
@@ -28,103 +24,93 @@ void AirlineRouter::addRequestedFlight(RequestedFlight& requestedFlight) {
     requestedFlights.push_back(requestedFlight);
 }
 
-const std::vector<std::vector<std::vector<Flight>>>& AirlineRouter::getOptimalFlightPaths() const {
+const std::vector<std::vector<FlightPath>>& AirlineRouter::getOptimalFlightPaths() const {
     return optimalFlightPaths;
 }
 
-// implementation of iterative backtracking to check if a location is already contained in a path
-bool isVisited(FrontierNode* node, const std::string& location) {
-    // climb up tree of paths until we find src node or a match
-    while (node != nullptr) {
-        if (node->getFlight().getLocation() == location) {
-            return true;
-        }
-        node = node->getParent();
-    }
-    return false;
+bool compPathsByTime(FlightPath& path, FlightPath& path1) {
+    return path.getTotalTime() < path1.getTotalTime();
 }
 
-std::vector<std::vector<Flight>> AirlineRouter::findFlightPath(RequestedFlight& requestedFlight) {
-    // create a lambda function to return the right path cost depending on whether we optimize for flight time or flight cost
-    auto getPathCost = requestedFlight.getPathOptimization() == FLIGHT_TIME ?
-                       [](Flight& flight) { return (float) flight.getTime(); } :
-                       [](Flight& flight) { return flight.getCost(); };
+bool compPathsByCost(FlightPath& path, FlightPath& path1) {
+    return path.getTotalCost() < path1.getTotalCost();
+}
+
+std::vector<FlightPath> AirlineRouter::findFlightPaths(RequestedFlight& requestedFlight) {
+    // create a lambda function to return the right total path cost depending on whether we optimize for flight time or flight cost
+    auto compPaths= requestedFlight.getPathOptimization() == FLIGHT_TIME ?
+                    compPathsByTime : compPathsByCost;
 
     // create a vector to store the shortest paths from src to dest
-    std::vector<std::vector<Flight>> shortestPaths{};
+    std::vector<FlightPath> paths{};
 
-    // src flight representing the src location
+    // frontierDepth for dfs with backtracking
+    Stack<Flight*> frontier{};
+    Stack<int> frontierDepth{};
+    // store visited vertices
+    std::unordered_map<std::string, bool> visited{};
+    // keep track of current path expanding
+    std::vector<Flight*> currentPath(airlineNetwork->numLocations());
+    int currentPathIndex = 0;
+
     Flight srcFlight(requestedFlight.getFromLocation(), 0, 0.0f);
-    // frontier decides which nodes we expand first, the ones with the lowest cost
-    auto comp = [](auto left, auto right ) {return left->getPathCost() > right->getPathCost(); };
-    std::priority_queue<std::shared_ptr<FrontierNode>, std::vector<std::shared_ptr<FrontierNode>>, decltype(comp)> frontier(comp);
+    frontier.push(&srcFlight);
+    frontierDepth.push(0);
 
-    // src node representing the src location
-    auto srcNode = std::make_shared<FrontierNode>(&srcFlight, 0.0f);
-    frontier.push(srcNode);
+    while (!frontier.empty()) {
+        // expand the vertex at top of frontier
+        auto current = frontier.pop();
+        auto currentDepth = frontierDepth.pop();
 
-    // counts the number of times we've discovered the dest node
-    int timesDiscovered = 0;
+        // if the current depth isn't the same as the current path index backtrack to keep state updated
+        while (currentPathIndex > 0 && currentPathIndex != currentDepth) {
+            currentPathIndex--;
+            visited[currentPath[currentPathIndex]->getLocation()] = false;
+        }
 
-    std::cout << "\n";
-    // iterate until every vertex has been reached
-    while(!frontier.empty()) {
-        // expand the vertex with the lowest cost so far
-        auto current = frontier.top();
-        frontier.pop();
-
-        std::cout << current->getFlight().getLocation() << "\n";
+        visited[current->getLocation()] = true;
+        currentPath[currentPathIndex] = current;
+        currentPathIndex++;
 
         // check if the current vertex is the dest vertex
-        if (current->getFlight().getLocation() == requestedFlight.getToLocation() && timesDiscovered < MAX_OPT_PATHS) {
-            auto path = backtrackPath(current.get());
-            shortestPaths.push_back(path);
-            timesDiscovered++;
+        if (current->getLocation() == requestedFlight.getToLocation()) {
+            // add a possible path to the list of all paths
+            FlightPath path(currentPath.begin(), currentPath.begin() + currentPathIndex);
+            paths.push_back(path);
             continue;
         }
 
-        // iterate through the neighbors of the current vertex and add them to the frontier
-        auto neighbors = airlineNetwork->neighborFlights(current->getFlight().getLocation());
-
-        for (auto &neighbor : *neighbors) {
-            std::cout << " " << neighbor.getLocation() << " " << neighbor.getCost() << "\n";
-            // cost to reach this neighbor from src vertex
-            auto cost = current->getPathCost() + getPathCost(neighbor);
-            // add vertex to frontier, if it hasn't been visited in the current path
-            if (!isVisited(current.get(), neighbor.getLocation())) {
-                std::cout << " Added to Frontier" << "\n";
-                // add node to frontier
-                auto node = std::make_shared<FrontierNode>(current, &neighbor, cost);
-                frontier.push(node);
+        // iterate through the neighbors of the current vertex and add them to the frontierDepth
+        auto neighbors = airlineNetwork->neighborFlights(current->getLocation());
+        bool addedNeighbors = false;
+        for (auto& neighbor: *neighbors) {
+            if (!visited[neighbor.getLocation()]) {
+                frontier.push(&neighbor);
+                frontierDepth.push(currentDepth + 1);
+                addedNeighbors = true;
             }
+        }
+
+        // already visited all neighbors at this vertex so backtrack
+        if (!addedNeighbors) {
+            currentPathIndex--;
+            visited[current->getLocation()] = false;
         }
     }
 
-    return shortestPaths;
-}
+    // sort the paths by total path distance
+    sort(paths.begin(), paths.end(), compPaths);
 
-// implementation of iterative backtracking to reconstruct a path
-std::vector<Flight> AirlineRouter::backtrackPath(FrontierNode* node) {
-    std::vector<Flight> path{};
-    // climb up tree of paths until we find src node
-    while (node != nullptr) {
-        std::cout << " " << node->getFlight().getLocation() << " ->";
-        path.push_back(node->getFlight());
-        node = node->getParent();
-    }
-    // reverse the path into right order since it was found by backtracking
-    std::reverse(path.begin(), path.end());
-    std::cout << "\n";
-    return path;
+    return paths;
 }
 
 void AirlineRouter::addFlightPaths() {
-    for (auto &requestedFlight : requestedFlights) {
-        optimalFlightPaths.push_back(findFlightPath(requestedFlight));
+    for (auto& requestedFlight: requestedFlights) {
+        optimalFlightPaths.push_back(findFlightPaths(requestedFlight));
     }
 }
 
-std::ostream& operator<<(std::ostream &os, AirlineRouter &airlineRouter) {
+std::ostream& operator<<(std::ostream& os, AirlineRouter& airlineRouter) {
     // for each requested flight, output the requested flight info, and the best flight paths
     for (int i = 0; i < airlineRouter.requestedFlights.size(); i++) {
         auto requestedFlight = airlineRouter.requestedFlights[i];
@@ -134,10 +120,11 @@ std::ostream& operator<<(std::ostream &os, AirlineRouter &airlineRouter) {
         os << "Flight " << (i + 1) << ": ";
         os << requestedFlight.getFromLocation() << ", ";
         os << requestedFlight.getToLocation() << " ";
-        os << "(" << (requestedFlight.getPathOptimization() == PathOptimization::FLIGHT_COST ? "Cost" : "Time") << ")" << "\n";
+        os << "(" << (requestedFlight.getPathOptimization() == PathOptimization::FLIGHT_COST ? "Cost" : "Time") << ")"
+           << "\n";
 
-        // iterate through optimized paths (already in order) and output
-        for (int j = 0; j < flightPaths.size(); j++) {
+        // iterate through top 3 optimized paths (already in order) and output
+        for (int j = 0; j < flightPaths.size() && j < 3; j++) {
             // iterate through each flight in the path and output
             float totalCost = 0;
             int totalTime = 0;
@@ -159,7 +146,7 @@ std::ostream& operator<<(std::ostream &os, AirlineRouter &airlineRouter) {
     return os;
 }
 
-std::istream& operator>>(std::istream &is, AirlineRouter &airlineRouter) {
+std::istream& operator>>(std::istream& is, AirlineRouter& airlineRouter) {
     std::string line;
 
     // expand the vector to the number of requested flights to reduce the amount of internal resizes needed
@@ -172,7 +159,7 @@ std::istream& operator>>(std::istream &is, AirlineRouter &airlineRouter) {
 
     // get each line from input stream and parse into vector of requested flights
     while (std::getline(is, line)) {
-        std::vector<std::string> splitStr = splitString(line, '|');
+        std::vector<std::string> splitStr = utils::splitString(line, '|');
 
         if (splitStr.size() < 3) {
             throw std::out_of_range("requested flight must contain 3 tokens");
